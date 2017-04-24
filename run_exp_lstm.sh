@@ -1,0 +1,1 @@
+th relatedness/main.lua --model lstm --data_sub_folder tiny --batch_size 20 --dim 50 --sim_nhidden 15 --learning_rate 0.05 --regularization 1e-4 --update_emb true --emb_learning_rate 0.05 --epochs 20
