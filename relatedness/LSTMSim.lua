@@ -190,7 +190,7 @@ function LSTMSim:train(dataset)
         if self.structure == 'lstm' then
           linput_grads, rinput_grads  = self:LSTM_backward(lsent, rsent, linputs, rinputs, rep_grad)
         elseif self.structure == 'bilstm' then
-          self:BiLSTM_backward(lsent, rsent, linputs, rinputs, rep_grad)
+          linput_grads, rinput_grads  = self:BiLSTM_backward(lsent, rsent, linputs, rinputs, rep_grad)
         end
         
         
@@ -265,10 +265,16 @@ function LSTMSim:BiLSTM_backward(lsent, rsent, linputs, rinputs, rep_grad)
       rgrad_b[{1, l, {}}] = rep_grad[4][l]
     end
   end
-  self.llstm:backward(linputs, lgrad)
-  self.llstm_b:backward(linputs, lgrad_b, true)
-  self.rlstm:backward(rinputs, rgrad)
-  self.rlstm_b:backward(rinputs, rgrad_b, true)
+  
+  local linput_grads = self.llstm:backward(linputs, lgrad)  
+  local linput_grads_b = self.llstm_b:backward(linputs, lgrad_b, true)
+  local rinput_grads = self.rlstm:backward(rinputs, rgrad)
+  local rinput_grads_b = self.rlstm_b:backward(rinputs, rgrad_b, true)
+  
+  local linput_grads_avg = (linput_grads + linput_grads_b)/2
+  local rinput_grads_avg = (rinput_grads + rinput_grads_b)/2
+
+  return linput_grads_avg, rinput_grads_avg
 end
 
 -- Predict the similarity of a sentence pair.
@@ -282,18 +288,14 @@ function LSTMSim:predict(lsent, rsent)
   if self.update_emb == true then
     self.emb:forward(lsent)
     linputs = torch.CudaTensor(self.emb.output:size()):copy(self.emb.output)
-    lrep = self.llstm:forward(linputs)
     rinputs = self.emb:forward(rsent)
-    rrep = self.rlstm:forward(rinputs)
   else
     linputs = self.emb_vecs:index(1, lsent:long()):cuda()
-    lrep = self.llstm:forward(linputs)
     rinputs = self.emb_vecs:index(1, rsent:long()):cuda()
-    rrep = self.rlstm:forward(rinputs)
   end
   local inputs
   if self.structure == 'lstm' then
-    inputs = {lrep, rrep}
+    inputs = {self.llstm:forward(linputs), self.rlstm:forward(rinputs)}
   elseif self.structure == 'bilstm' then
     self.llstm_b:evaluate()
     self.rlstm_b:evaluate()

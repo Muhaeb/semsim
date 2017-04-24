@@ -184,25 +184,16 @@ function TreeLSTMSim:predict(ltree, rtree, lsent, rsent)
   local rinputs = nil
   local lrep = nil
   local rrep = nil
-
   if self.update_emb == true then
     self.emb:forward(lsent)
     linputs = torch.CudaTensor(self.emb.output:size()):copy(self.emb.output)
-    lrep = self.treelstm:forward(ltree, linputs)[2]
-    
     rinputs = self.emb:forward(rsent)
-    rrep = self.treelstm:forward(rtree, rinputs)[2]
   else
     linputs = self.emb_vecs:index(1, lsent:long()):cuda()
-    lrep = self.treelstm:forward(ltree, linputs)[2]
     rinputs = self.emb_vecs:index(1, rsent:long()):cuda()
-    rrep = self.treelstm:forward(rtree, rinputs)[2]
   end
-
-  --local linputs = self.emb:forward(lsent)
-  --local lrep = self.treelstm:forward(ltree, linputs)[2]
-  --local rinputs = self.emb:forward(rsent)
-  --local rrep = self.treelstm:forward(rtree, rinputs)[2]
+  local lrep = self.treelstm:forward(ltree, linputs)[2]
+  local rrep = self.treelstm:forward(rtree, rinputs)[2]
   local output = self.sim_module:forward{lrep, rrep}
   self.treelstm:clean(ltree)
   self.treelstm:clean(rtree)
